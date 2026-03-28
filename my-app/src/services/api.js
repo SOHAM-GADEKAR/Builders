@@ -16,11 +16,18 @@ export const apiCall = async (endpoint, method = 'GET', body = null) => {
     config.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.statusText}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `API Error: ${response.statusText}`);
+    }
+    return data;
+  } catch (error) {
+    console.error('API Call Error:', error);
+    throw error;
   }
-  return response.json();
 };
 
 // Auth API calls
@@ -37,7 +44,8 @@ export const meetingsAPI = {
   create: (title, date, attendees, agenda) =>
     apiCall('/meetings', 'POST', { title, date, attendees, agenda }),
   getAll: () => apiCall('/meetings'),
-  getById: (id) => apiCall(`/meetings/${id}`)
+  getById: (id) => apiCall(`/meetings/${id}`),
+  getWeeklyDigest: () => apiCall('/meetings/weekly-digest')
 };
 
 // Decisions API calls
@@ -53,6 +61,17 @@ export const actionItemsAPI = {
     apiCall(`/actionItems/${meetingId}`, 'POST', { title, owner, deadline }),
   getUserItems: (userId) => apiCall(`/actionItems/user/${userId}`),
   getOverdue: (userId) => apiCall(`/actionItems/overdue/${userId}`),
-  update: (id, status, deadline) =>
-    apiCall(`/actionItems/${id}`, 'PUT', { status, deadline })
+  update: (id, status, deadline) => {
+    const payload = {};
+    if (status !== undefined) payload.status = status;
+    if (deadline !== undefined && deadline !== null && deadline !== '') payload.deadline = deadline;
+    return apiCall(`/actionItems/${id}`, 'PUT', payload);
+  }
+};
+
+// Users API calls
+export const usersAPI = {
+  getAll: () => apiCall('/users'),
+  getGamification: () => apiCall('/users/me/gamification'),
+  getLeaderboard: () => apiCall('/users/leaderboard')
 };

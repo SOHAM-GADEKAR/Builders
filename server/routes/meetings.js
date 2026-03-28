@@ -3,6 +3,7 @@ const Meeting = require('../models/Meeting');
 const Decision = require('../models/Decision');
 const ActionItem = require('../models/ActionItem');
 const authMiddleware = require('../middleware/auth');
+const { grantXp } = require('../utils/gamification');
 const router = express.Router();
 
 // Create a new meeting
@@ -14,21 +15,23 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Title and date are required' });
     }
 
+    const normalizedAttendees = Array.isArray(attendees) && attendees.length > 0
+      ? attendees
+      : [req.user.userId];
+
     const meeting = new Meeting({
       title,
       date,
-      attendees: attendees || [req.user.userId],
+      attendees: normalizedAttendees,
       agenda: agenda || '',
       createdBy: req.user.userId,
     });
 
     await meeting.save();
     await meeting.populate('attendees', 'name email');
+    await grantXp(req.user.userId, 5);
 
-    res.status(201).json({
-      message: 'Meeting created successfully',
-      meeting,
-    });
+    res.status(201).json(meeting);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -38,13 +41,84 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const meetings = await Meeting.find({
-      attendees: req.user.userId,
+      $or: [
+        { attendees: req.user.userId },
+        { createdBy: req.user.userId },
+      ],
     })
       .populate('attendees', 'name email')
       .populate('createdBy', 'name email')
       .sort({ date: -1 });
 
     res.json(meetings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Weekly digest for meetings user has access to
+router.get('/weekly-digest', authMiddleware, async (req, res) => {
+  try {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = (day + 6) % 7;
+
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - diffToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const accessibleMeetings = await Meeting.find({
+      $or: [
+        { attendees: req.user.userId },
+        { createdBy: req.user.userId },
+      ],
+    }).select('_id');
+
+    const meetingIds = accessibleMeetings.map((m) => m._id);
+
+    const decisions = await Decision.find({
+      meetingId: { $in: meetingIds },
+      createdAt: { $gte: weekStart, $lt: weekEnd },
+    }).sort({ createdAt: -1 });
+
+    const itemsDueThisWeek = await ActionItem.find({
+      meetingId: { $in: meetingIds },
+      deadline: { $gte: weekStart, $lt: weekEnd },
+    })
+      .populate('owner', 'name email')
+      .sort({ deadline: 1 });
+
+    const overdueItems = await ActionItem.find({
+      meetingId: { $in: meetingIds },
+      status: { $ne: 'done' },
+      deadline: { $lt: now },
+    })
+      .populate('owner', 'name email')
+      .sort({ deadline: 1 });
+
+    const completedItems = await ActionItem.find({
+      meetingId: { $in: meetingIds },
+      status: 'done',
+      updatedAt: { $gte: weekStart, $lt: weekEnd },
+    })
+      .populate('owner', 'name email')
+      .sort({ updatedAt: -1 });
+
+    res.json({
+      weekStart,
+      weekEnd,
+      decisionsCount: decisions.length,
+      itemsDueCount: itemsDueThisWeek.length,
+      overdueCount: overdueItems.length,
+      completedCount: completedItems.length,
+      decisions,
+      itemsDueThisWeek,
+      overdueItems,
+      completedItems,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -101,10 +175,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     await meeting.save();
     await meeting.populate('attendees', 'name email');
 
-    res.json({
-      message: 'Meeting updated successfully',
-      meeting,
-    });
+    res.json(meeting);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

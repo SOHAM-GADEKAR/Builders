@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const meetingRoutes = require('./routes/meetings');
 const decisionRoutes = require('./routes/decisions');
 const actionItemRoutes = require('./routes/actionItems');
+const userRoutes = require('./routes/users');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/decisions', decisionRoutes);
 app.use('/api/actionItems', actionItemRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

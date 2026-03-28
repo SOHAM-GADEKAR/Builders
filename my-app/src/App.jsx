@@ -10,14 +10,16 @@ import './App.css'
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'))
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'))
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      setIsAuthenticated(!!localStorage.getItem('token'))
-      setUser(JSON.parse(localStorage.getItem('user') || 'null'))
+    setMounted(true)
+    const token = localStorage.getItem('token')
+    const userdata = localStorage.getItem('user')
+    setIsAuthenticated(!!token)
+    if (userdata) {
+      setUser(JSON.parse(userdata))
     }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   const handleLogout = () => {

@@ -1,6 +1,9 @@
 export default function ActionItemCard({ item, onStatusChange, users = [] }) {
-  const isOverdue = new Date(item.deadline) < new Date() && item.status !== 'done';
-  const owner = users.find(u => u._id === item.owner);
+  const hasValidDeadline = item.deadline && !Number.isNaN(new Date(item.deadline).getTime());
+  const isOverdue = hasValidDeadline && new Date(item.deadline) < new Date() && item.status !== 'done';
+  const owner = typeof item.owner === 'object'
+    ? item.owner
+    : users.find(u => u._id === item.owner);
 
   return (
     <div className={`p-4 mb-3 rounded border-l-4 ${
@@ -12,7 +15,7 @@ export default function ActionItemCard({ item, onStatusChange, users = [] }) {
         <div className="flex-1">
           <p className="font-bold text-gray-800">{item.title}</p>
           <p className="text-sm text-gray-600">Owner: {owner?.name || 'Unknown'}</p>
-          <p className="text-sm text-gray-600">Deadline: {new Date(item.deadline).toLocaleDateString()}</p>
+          <p className="text-sm text-gray-600">Deadline: {hasValidDeadline ? new Date(item.deadline).toLocaleDateString() : 'Not set'}</p>
           {isOverdue && <p className="text-xs font-bold text-red-600">⚠️ OVERDUE</p>}
         </div>
         <select
