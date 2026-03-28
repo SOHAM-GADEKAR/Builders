@@ -33,12 +33,19 @@ export default function Login() {
         response = await authAPI.register(formData.name, formData.email, formData.password);
       }
 
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      navigate('/meetings');
+      console.log('Auth Response:', response);
+      if (response.token && response.user) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        
+        // Reload page to trigger App.jsx auth check
+        window.location.href = '/';
+      } else {
+        setError('Invalid response from server');
+      }
     } catch (err) {
+      console.error('Auth Error:', err);
       setError(err.message || 'Authentication failed');
-    } finally {
       setLoading(false);
     }
   };

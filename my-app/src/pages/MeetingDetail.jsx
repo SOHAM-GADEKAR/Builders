@@ -1,30 +1,53 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { meetingsAPI, decisionsAPI, actionItemsAPI } from '../services/api';
+import { meetingsAPI, decisionsAPI, actionItemsAPI, usersAPI } from '../services/api';
 import DecisionCard from '../components/DecisionCard';
 import ActionItemCard from '../components/ActionItemCard';
 
 export default function MeetingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
   const [meeting, setMeeting] = useState(null);
   const [decisions, setDecisions] = useState([]);
   const [actionItems, setActionItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newDecision, setNewDecision] = useState('');
   const [newActionItem, setNewActionItem] = useState({ title: '', owner: '', deadline: '' });
+  const [xpToast, setXpToast] = useState(null);
+  const [levelPopup, setLevelPopup] = useState(null);
 
   useEffect(() => {
     fetchMeetingDetails();
   }, [id]);
 
+  useEffect(() => {
+    if (!xpToast) return;
+    const timeout = setTimeout(() => setXpToast(null), 2200);
+    return () => clearTimeout(timeout);
+  }, [xpToast]);
+
+  useEffect(() => {
+    if (!levelPopup) return;
+    const timeout = setTimeout(() => setLevelPopup(null), 3000);
+    return () => clearTimeout(timeout);
+  }, [levelPopup]);
+
   const fetchMeetingDetails = async () => {
     try {
       setLoading(true);
-      const data = await meetingsAPI.getById(id);
-      setMeeting(data);
-      setDecisions(data.decisions || []);
-      setActionItems(data.actionItems || []);
+      const meetingData = await meetingsAPI.getById(id);
+
+      setMeeting(meetingData);
+      setDecisions(meetingData.decisions || []);
+      setActionItems(meetingData.actionItems || []);
+
+      // Default assignment to current user when possible.
+      if (currentUser?._id && (meetingData.attendees || []).some((u) => u._id === currentUser._id)) {
+        setNewActionItem((prev) => ({ ...prev, owner: currentUser._id }));
+      } else if ((meetingData.attendees || []).length > 0) {
+        setNewActionItem((prev) => ({ ...prev, owner: meetingData.attendees[0]._id }));
+      }
     } catch (err) {
       console.error('Error fetching meeting:', err);
     } finally {
@@ -36,7 +59,18 @@ export default function MeetingDetail() {
     e.preventDefault();
     if (!newDecision.trim()) return;
     try {
+      const beforeProfile = await usersAPI.getGamification();
       const decision = await decisionsAPI.add(id, newDecision);
+      const afterProfile = await usersAPI.getGamification();
+
+      const gainedXp = (afterProfile?.xp || 0) - (beforeProfile?.xp || 0);
+      if (gainedXp > 0) {
+        setXpToast(`+${gainedXp} XP earned!`);
+      }
+      if ((afterProfile?.level || 1) > (beforeProfile?.level || 1)) {
+        setLevelPopup(`Level Up! You reached Level ${afterProfile.level} 🎉`);
+      }
+
       setDecisions([...decisions, decision]);
       setNewDecision('');
     } catch (err) {
@@ -48,7 +82,18 @@ export default function MeetingDetail() {
     e.preventDefault();
     if (!newActionItem.title.trim() || !newActionItem.owner || !newActionItem.deadline) return;
     try {
+      const beforeProfile = await usersAPI.getGamification();
       const item = await actionItemsAPI.create(id, newActionItem.title, newActionItem.owner, newActionItem.deadline);
+      const afterProfile = await usersAPI.getGamification();
+
+      const gainedXp = (afterProfile?.xp || 0) - (beforeProfile?.xp || 0);
+      if (gainedXp > 0) {
+        setXpToast(`+${gainedXp} XP earned!`);
+      }
+      if ((afterProfile?.level || 1) > (beforeProfile?.level || 1)) {
+        setLevelPopup(`Level Up! You reached Level ${afterProfile.level} 🎉`);
+      }
+
       setActionItems([...actionItems, item]);
       setNewActionItem({ title: '', owner: '', deadline: '' });
     } catch (err) {
@@ -58,7 +103,7 @@ export default function MeetingDetail() {
 
   const handleStatusChange = async (itemId, newStatus) => {
     try {
-      await actionItemsAPI.update(itemId, newStatus, null);
+      await actionItemsAPI.update(itemId, newStatus);
       setActionItems(actionItems.map(item =>
         item._id === itemId ? { ...item, status: newStatus } : item
       ));
@@ -74,6 +119,18 @@ export default function MeetingDetail() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
+        {xpToast && (
+          <div className="fixed top-24 right-6 z-50 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg animate-bounce">
+            {xpToast}
+          </div>
+        )}
+
+        {levelPopup && (
+          <div className="fixed top-40 right-6 z-50 bg-indigo-100 text-indigo-900 border border-indigo-300 px-4 py-3 rounded-lg shadow-lg">
+            {levelPopup}
+          </div>
+        )}
+
         <button
           onClick={() => navigate('/meetings')}
           className="mb-4 text-blue-600 hover:underline"
@@ -117,13 +174,19 @@ export default function MeetingDetail() {
                 placeholder="Action title..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
-              <input
-                type="text"
+              <select
                 value={newActionItem.owner}
                 onChange={(e) => setNewActionItem({ ...newActionItem, owner: e.target.value })}
-                placeholder="Owner user ID..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
+                required
+              >
+                <option value="">Assign to attendee...</option>
+                {(meeting.attendees || []).map((attendee) => (
+                  <option key={attendee._id} value={attendee._id}>
+                    {attendee.name} ({attendee.email})
+                  </option>
+                ))}
+              </select>
               <input
                 type="date"
                 value={newActionItem.deadline}
@@ -142,6 +205,7 @@ export default function MeetingDetail() {
                 key={item._id}
                 item={item}
                 onStatusChange={handleStatusChange}
+                users={meeting.attendees || []}
               />
             ))}
           </div>

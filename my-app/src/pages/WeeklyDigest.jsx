@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { meetingsAPI, actionItemsAPI } from '../services/api';
+import { meetingsAPI } from '../services/api';
 
 export default function WeeklyDigest() {
   const [digestData, setDigestData] = useState(null);
@@ -12,48 +12,8 @@ export default function WeeklyDigest() {
   const fetchWeeklyDigest = async () => {
     try {
       setLoading(true);
-      // Get current user from localStorage
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const meetings = await meetingsAPI.getAll();
-      const userItems = await actionItemsAPI.getUserItems(user._id);
-
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-
-      // All decisions from meetings this week
-      const allDecisions = [];
-      meetings.forEach(m => {
-        if (new Date(m.date) >= weekStart && new Date(m.date) <= weekEnd) {
-          allDecisions.push(...(m.decisions || []));
-        }
-      });
-
-      // Action items due this week
-      const itemsDueThisWeek = userItems.filter(item =>
-        new Date(item.deadline) >= weekStart &&
-        new Date(item.deadline) <= weekEnd
-      );
-
-      // Overdue items
-      const overdueItems = userItems.filter(item =>
-        new Date(item.deadline) < now && item.status !== 'done'
-      );
-
-      // Completed items
-      const completedItems = userItems.filter(item => item.status === 'done');
-
-      setDigestData({
-        decisionsCount: allDecisions.length,
-        itemsDueCount: itemsDueThisWeek.length,
-        overdueCount: overdueItems.length,
-        completedCount: completedItems.length,
-        itemsDueThisWeek,
-        overdueItems,
-        completedItems
-      });
+      const digest = await meetingsAPI.getWeeklyDigest();
+      setDigestData(digest);
     } catch (err) {
       console.error('Error fetching digest:', err);
     } finally {
@@ -130,47 +90,6 @@ export default function WeeklyDigest() {
               {digestData.completedItems.map(item => (
                 <li key={item._id} className="flex justify-between p-2 border-b line-through text-gray-500">
                   <span>{item.title}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-                  <span>{item.title}</span>
-                  <span className="text-gray-600">{new Date(item.deadline).toLocaleDateString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Overdue Items */}
-        {digestData.overdueCount > 0 && (
-          <div className="bg-red-50 p-6 rounded shadow border-l-4 border-red-600 mb-6">
-            <h2 className="text-2xl font-bold text-red-800 mb-4">⚠️ Overdue Items</h2>
-            <ul className="space-y-2">
-              {digestData.overdueItems.map(item => (
-                <li key={item._id} className="flex justify-between p-2 border-b border-red-200">
-                  <span className="text-red-800 font-semibold">{item.title}</span>
-                  <span className="text-red-600">{new Date(item.deadline).toLocaleDateString()}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Completed Items */}
-        {digestData.completedCount > 0 && (
-          <div className="bg-green-50 p-6 rounded shadow border-l-4 border-green-600">
-            <h2 className="text-2xl font-bold text-green-800 mb-4">✅ Completed Items</h2>
-            <ul className="space-y-2">
-              {digestData.completedItems.map(item => (
-                <li key={item._id} className="flex justify-between p-2 border-b border-green-200">
-                  <span className="text-green-800">{item.title}</span>
-                  <span className="text-green-600">{new Date(item.deadline).toLocaleDateString()}</span>
                 </li>
               ))}
             </ul>
