@@ -1,0 +1,41 @@
+PS 1.3   
+Meeting Accountability Gap 
+Build a meeting outcome tracker focused purely on decisions and action items 
+ 
+Background 
+Teams hold an average of 11 to 15 meetings per week. Action items are discussed, nodded at and 
+promptly forgotten. Studies show that within 48 hours, most participants have forgotten 50 to 70 percent 
+of what was decided. Meetings repeat the same conversations. Decisions get re-debated. The person 
+who was supposed to do something never received a written record of the commitment. Accountability 
+evaporates — not because people are irresponsible, but because there is no lightweight system to 
+capture it. 
+ 
+The Problem in Detail 
+• Meeting notes are either not taken, or taken in a personal notebook no one else can see 
+• Action items discussed verbally are rarely assigned a named owner and a concrete deadline 
+• Follow-up emails summarising meetings are inconsistently written and quickly buried in inboxes 
+• There is no single place where a person can see all the tasks they owe across multiple 
+meetings 
+• Overdue action items have no visible consequence — they silently age until someone asks 
+about them 
+ 
+The Challenge 
+Build a focused meeting outcome tracker — not a transcription tool, not a scheduler — that captures 
+decisions and action items in real time and keeps every participant accountable to their commitments. 
+ 
+What to Build 
+Your submission must address the following functional areas. A complete, well-executed subset is 
+better than a broken full implementation. 
+ 
+1 Meeting log — user creates a meeting record with title, date, a list of attendees and a brief 
+agenda or context note 
+2 Decisions log — user adds key decisions made during the meeting (what was decided, not 
+who said what); decisions are displayed prominently 
+3 Action items — user adds action items with a title, an assigned owner selected from attendees, 
+a deadline date and a status: open, in progress or done 
+4 Personal feed — each attendee has a view showing only their action items across all 
+meetings, sorted by deadline, with overdue items highlighted 
+5 Staleness indicator — any action item past its deadline and not marked done is flagged 
+visually and surfaced prominently in both the meeting view and the personal feed 
+6 Weekly digest — a summary view showing all decisions made this week, all action items due 
+this week, overdue items and items completed this week
